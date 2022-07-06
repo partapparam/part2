@@ -1,18 +1,27 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Persons from "./Persons"
 import Filter from "./Filter"
 import PersonForm from "./PersonForm"
+import axios from "axios"
+import phonebookService from "../service/phonebook"
 
 const Phonebook = () => {
-  const [people, setPeople] = useState([
-    { name: "Param", number: "615", id: 1 },
-  ])
+  const [people, setPeople] = useState([])
   const [name, setName] = useState("")
   const [number, setNumber] = useState("")
   const [filterList, setFilterList] = useState("")
 
+  const hook = () => {
+    phonebookService.getAll().then((list) => {
+      // console.log(list)
+      setPeople(list)
+    })
+  }
+  // two params for useEffect, the [] ensure that this will only run on first render
+  useEffect(hook, [])
+
   const handleFilterList = (event) => {
-    console.log(event.target.value)
+    // console.log(event.target.value)
     setFilterList(event.target.value)
   }
   // conditional statement to see if there is a filter present. If so, filter, if not show all.
@@ -30,32 +39,46 @@ const Phonebook = () => {
     setNumber(event.target.value)
   }
 
-  const exist = (n) => {
-    return people.filter((p) => {
-      return p.name == n
-    })
-  }
-
   const addPerson = (event) => {
     event.preventDefault()
-    if (exist(name).length !== 0) {
+    const person = people.find((p) => p.name === name)
+    if (person) {
       alert("this name already exists")
+      const changedPerson = { ...person, number: number }
+
+      phonebookService.updatePerson(changedPerson).then((returnedPerson) => {
+        console.log(returnedPerson)
+        setPeople(
+          people.map((p) => (p.id !== returnedPerson.id ? p : returnedPerson))
+        )
+      })
     } else {
       const newPerson = {
         name: name,
         number: number,
         id: people.length + 1,
       }
-      setPeople(people.concat(newPerson))
+
+      phonebookService.createNew(newPerson).then((returnedPerson) => {
+        console.log(newPerson, "here")
+        setPeople(people.concat(newPerson))
+      })
     }
     // change both inputs to blank
     setName("")
     setNumber("")
   }
 
+  const deletePerson = (id) => {
+    console.log(id)
+    window.confirm("Are you sure?")
+    phonebookService.deletePerson(id).then((returnedData) => {
+      setPeople(people.filter((p) => p.id !== id))
+    })
+  }
+
   return (
     <div>
-      <h1>Phonebook</h1>
       <Filter
         filterListProp={filterList}
         onChangeProps={handleFilterList}
@@ -84,7 +107,13 @@ const Phonebook = () => {
       <div>
         <ul>
           {peopleToShow.map((p) => {
-            return <Persons key={p.id} person={p} />
+            return (
+              <Persons
+                key={p.id}
+                person={p}
+                deleteProps={() => deletePerson(p.id)}
+              />
+            )
           })}
         </ul>
       </div>
